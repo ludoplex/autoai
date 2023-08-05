@@ -58,12 +58,16 @@ def getKFold(rows):
 
     Function returns number of kfold to consider for Cross validation on the basis of dataset row counts
     """
-    if(rows>100 and rows<300):k=2
-    elif(rows>300 and rows<=500): k=4
-    elif(rows>500 and rows <=5000 ):k=5
-    elif(rows>5000):k=10
-    else:k=2
-    return k
+    if (rows>100 and rows<300):
+        return 2
+    elif (rows>300 and rows<=500):
+        return 4
+    elif (rows>500 and rows <=5000 ):
+        return 5
+    elif (rows>5000):
+        return 10
+    else:else
+        return 2
 
 def cv_score(model,X,Y,k):
 
@@ -87,8 +91,7 @@ def sort_score(modelScore):
 
     Function returns a sorted dictionary on the basis of values.
     """
-    sorted_dict=dict(sorted(modelScore.items(), key=lambda item: item[1],reverse=True))
-    return sorted_dict
+    return dict(sorted(modelScore.items(), key=lambda item: item[1],reverse=True))
 
 def eval_model(models,m,X,Y,k,DictionaryClass):
     """
@@ -137,7 +140,9 @@ def train_on_sample_data(dataframe,target,models,DictionaryClass,stages):
         models_List=models.keys()
     k=getKFold(rows)
     modelScore={}
-    prog.create_progressbar(len(models_List),"Quick Search (Stage 1 of {}) :".format(stages))
+    prog.create_progressbar(
+        len(models_List), f"Quick Search (Stage 1 of {stages}) :"
+    )
     for m in models_List:
         modelScore[m]=eval_model(models,m,X,Y,k,DictionaryClass)
         prog.update_progressbar(1)
@@ -161,7 +166,7 @@ def train_on_full_data(X,Y,models,best,DictionaryClass,stages):
     k=getKFold(X.shape[0])
     modelScore={}
     if DictionaryClass.YAML['problem']['type']=="Image Classification" and len(best)>5:best=DictionaryClass.image_models
-    prog.create_progressbar(len(best),"Deep Search (Stage 2 of {}) :".format(stages))
+    prog.create_progressbar(len(best), f"Deep Search (Stage 2 of {stages}) :")
     for m in best:
         modelScore[m]=eval_model(models,m,X,Y,k,DictionaryClass)
         prog.update_progressbar(1)
@@ -179,7 +184,10 @@ def train_on_neural(X,Y,ptype,epochs,max_neural_search,stage,ofstage):
 
     Function perform neural network model search and tuning using autokeras api and finally returns selected keras model.
     """
-    prog.create_progressbar(n_counters=((max_neural_search+2)*epochs),desc="Neural Networks (stage {} of {})".format(stage,ofstage))
+    prog.create_progressbar(
+        n_counters=((max_neural_search + 2) * epochs),
+        desc=f"Neural Networks (stage {stage} of {ofstage})",
+    )
     if ptype!="Image Classification":
         clf = ak.StructuredDataClassifier(overwrite=True,max_trials=max_neural_search) if ptype=='Classification' else ak.StructuredDataRegressor(overwrite=True,max_trials=max_neural_search) 
     else: clf= ak.ImageClassifier(overwrite=True,max_trials=max_neural_search)
@@ -214,14 +222,25 @@ def classic_model(ptype,dataframe,target,X,Y,DictClass,modelsList,accuracy_crite
     if dataframe.shape[0]>500:
         best=train_on_full_data(X,Y,modelsList,train_on_sample_data(dataframe,target,modelsList,DictClass,stages),DictClass,stages)
     else:
-        print("Quick Search(Stage 1 of {}) is skipped".format(stages))
+        print(f"Quick Search(Stage 1 of {stages}) is skipped")
         best = train_on_full_data(X,Y,modelsList,DictClass.image_models,DictClass,stages)if ptype=="Image Classification" else train_on_full_data(X,Y,modelsList,modelsList,DictClass,stages)
-    
-    if ptype=="Image Classification":
-        modelResult = Tuner.tune_model(X,Y,best,modelsList,ptype,accuracy_criteria,DictClass,stages)
-    else:
-        modelResult = Tuner.tune_model(dataframe,target,best,modelsList,ptype,accuracy_criteria,DictClass,stages)
-    return modelResult
+
+    return (
+        Tuner.tune_model(
+            X, Y, best, modelsList, ptype, accuracy_criteria, DictClass, stages
+        )
+        if ptype == "Image Classification"
+        else Tuner.tune_model(
+            dataframe,
+            target,
+            best,
+            modelsList,
+            ptype,
+            accuracy_criteria,
+            DictClass,
+            stages,
+        )
+    )
 
 def classic_model_records(modelData,modelResult,DictClass):
     """
@@ -345,9 +364,7 @@ def time_model(dataframe,DictClass,accuracy_criteria=None):
     modelsList=time_config().models
     train_data, test_data=spliter(dataframe)
     modelkey = model_search_time(train_data, test_data)
-    modelResult = Tuner.time_tuner(train_data, test_data,modelkey,modelsList)
-    
-    return modelResult
+    return Tuner.time_tuner(train_data, test_data,modelkey,modelsList)
 
 
 def model_search_time(train_data, test_data,DictClass=None,accuracy_criteria=None):

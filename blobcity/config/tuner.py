@@ -62,20 +62,19 @@ def early_stopping_opt(study, trial):
     whether the current best accuracy has not changed for the last ten trials.
 
     """
-    if EarlyStopper.best_score == None: EarlyStopper.best_score = study.best_value
+    if EarlyStopper.best_score is None: EarlyStopper.best_score = study.best_value
     if study.best_value >= EarlyStopper.criterion : study.stop()
     if study.best_value > EarlyStopper.best_score:
         EarlyStopper.best_score = study.best_value
         EarlyStopper.iter_count = 0
-    else:
-        if  study.best_value > 0.90 and study.best_value < 0.99:
-            if EarlyStopper.iter_count < EarlyStopper.iter_stop:
-                EarlyStopper.iter_count=EarlyStopper.iter_count+1  
-            else:
-                EarlyStopper.iter_count = 0
-                EarlyStopper.best_score = None
-                study.stop()
-                
+    elif study.best_value > 0.90 and study.best_value < 0.99:
+        if EarlyStopper.iter_count < EarlyStopper.iter_stop:
+            EarlyStopper.iter_count=EarlyStopper.iter_count+1
+        else:
+            EarlyStopper.iter_count = 0
+            EarlyStopper.best_score = None
+            study.stop()
+
     return
 
 def early_stopping_opt_time(study, trial):
@@ -89,29 +88,27 @@ def early_stopping_opt_time(study, trial):
     whether the current best accuracy has not changed for the last ten trials.
 
     """
-    if EarlyStopper_time.best_score == None: EarlyStopper_time.best_score = study.best_value
+    if EarlyStopper_time.best_score is None: EarlyStopper_time.best_score = study.best_value
     if study.best_value <= EarlyStopper_time.criterion : study.stop()
     if study.best_value < EarlyStopper_time.best_score:
         EarlyStopper_time.best_score = study.best_value
         EarlyStopper_time.iter_count = 0
-    else:
-        if  study.best_value > 1 and study.best_value < 10:
-            if EarlyStopper_time.iter_count < EarlyStopper_time.iter_stop:
-                EarlyStopper_time.iter_count=EarlyStopper_time.iter_count+1  
-            else:
-                EarlyStopper_time.iter_count = 0
-                EarlyStopper_time.best_score = None
-                study.stop()
-                
+    elif study.best_value > 1 and study.best_value < 10:
+        if EarlyStopper_time.iter_count < EarlyStopper_time.iter_stop:
+            EarlyStopper_time.iter_count=EarlyStopper_time.iter_count+1
+        else:
+            EarlyStopper_time.iter_count = 0
+            EarlyStopper_time.best_score = None
+            study.stop()
+
     return
 def time_metrics(y_true,y_pred):
-    result=dict()
-    result['R2']=round(r2_score(y_true, y_pred),5)
+    result = {'R2': round(r2_score(y_true, y_pred), 5)}
     result['MAE']=round(mean_absolute_error(y_true, y_pred),5)
     result['MSE']=round(mean_squared_error(y_true, y_pred),5)
     result['RMSE']=round(mean_squared_error(y_true, y_pred,squared=False),5)
     result['MAPE']=round(mean_absolute_percentage_error(y_true, y_pred),5)
-    
+
     return result
 
 def regression_metrics(y_true,y_pred):
@@ -126,8 +123,7 @@ def regression_metrics(y_true,y_pred):
     Finally return the result dictionary 
     
     """
-    result=dict()
-    result['R2']=round(r2_score(y_true, y_pred),3)
+    result = {'R2': round(r2_score(y_true, y_pred), 3)}
     result['MAE']=round(mean_absolute_error(y_true, y_pred),3)
     result['MSE']=round(mean_squared_error(y_true, y_pred),3)
     result['RMSE']=round(mean_squared_error(y_true, y_pred,squared=False),3)
@@ -144,8 +140,7 @@ def classification_metrics(y_true,y_pred):
     two values/data to calculate f1 score,precision score, and recall for the classification problem. And finally 
     return them in a dictionary
     """
-    result=dict()
-    result['F1-Score']=round(f1_score(y_true, y_pred, average="weighted"),3)
+    result = {'F1-Score': round(f1_score(y_true, y_pred, average="weighted"), 3)}
     result['Precision']=round(precision_score(y_true, y_pred,average="weighted"),3)
     result['Recall']=round(recall_score(y_true, y_pred,average="weighted"),3)
     return result
@@ -186,7 +181,7 @@ def get_params(trial):
     Function fetch different parameter values associated to model using appropriate optuna.trial class.
     then finally return the dictionary of parameters.
     """
-    params=dict()
+    params = {}
     for key,value in parameter.items():
         for datatype,arg in value.items():
             if datatype == "int":
@@ -227,11 +222,6 @@ def prediction_data(y_true,y_pred,ptype,prog):
         cm=confusion_matrix(y_true,y_pred)
         prog.update_progressbar(1)
         return cm
-    elif ptype in ["Timeseries"]:
-        data_pred=[y_true.values,y_pred]
-        prog.update_progressbar(1)
-        return data_pred  
-
     else:
         data_pred=[y_true.values,y_pred]
         prog.update_progressbar(1)
@@ -267,8 +257,11 @@ def tune_model(dataframe,target,modelkey,modelList,ptype,accuracy,DictionaryClas
     try:
         if modelName().__class__.__name__ in ['SVC','NuSVC','LinearSVC','SVR','NuSVR','LinearSVR','KNeighborsClassifier','KNeighborsRegressor','RadiusNeighborsClassifier','RadiusNeighborsRegressor','NearestCentroid']:
             X = scaling_data(X,DictionaryClass,update=True)
-                 
-        prog.create_progressbar(n_trials,"Tuning {} (Stage 3 of {}) :".format(modelName().__class__.__name__,stages))
+
+        prog.create_progressbar(
+            n_trials,
+            f"Tuning {modelName().__class__.__name__} (Stage 3 of {stages}) :",
+        )
         study = optuna.create_study(direction="maximize")
         study.optimize(objective,n_trials=n_trials,callbacks=[early_stopping_opt])
         model = modelName(**study.best_params).fit(X,Y)
@@ -292,9 +285,7 @@ def timeobjective(trial):
     predictions = mdl1.forecast(len(test_data1))
     predictions = pd.Series(predictions, index=test_data1.index)
     residuals = test_data1 - predictions
-    rmse=round(np.sqrt(np.mean(residuals**2)),5)
-
-    return rmse
+    return round(np.sqrt(np.mean(residuals**2)),5)
  
 
 def time_tuner(train_data, test_data,modelkey,modelList,accuracy=None):

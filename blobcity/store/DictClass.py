@@ -79,11 +79,9 @@ class DictClass:
 
         Function Updates a nested Dictionary Value if the key exists else creates an entry for the key
         """
-        if key in self.YAML.keys():
-            self.YAML[key][key2]=value
-        else:
+        if key not in self.YAML.keys():
             self.YAML[key]={}
-            self.YAML[key][key2]=value
+        self.YAML[key][key2]=value
             
     def resetVar(self):
         """
@@ -93,5 +91,5 @@ class DictClass:
         self.ObjectList=None
         self.YAML={}
         self.feature_importance={}
-        self.original_label=dict()
+        self.original_label = {}
     

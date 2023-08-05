@@ -45,37 +45,35 @@ def train(file=None, target=None,model_types='classic',accuracy_criteria=0.99,re
     dict_class=DictClass()
     dict_class.resetVar()
     exp_id=ProType.generate_uuid()
-    #data read
-    if file!=None:
-        dict_class.addKeyValue('problem',{'type':'Image Classification'})
-        root, ext = os.path.splitext(file)
-        compress_list=[".zip",".tar",".gz",'.tar.gz','.bz2']
-        dict_class.addKeyValue('data_read',{'file':file})
-        if not ext and ext not in compress_list and target==None:
-            if validate_url(file): 
-                file=file_from_url(file,dict_class) 
-            else:
-                dict_class.UpdateNestedKeyValue('data_read','from','Local')
-            data,target=check_subfolder_data(file,dict_class)
-        elif ext in compress_list:
-            if validate_url(file): 
-                file=file_from_url(file,dict_class) 
-            else:
-                dict_class.UpdateNestedKeyValue('data_read','from','Local')
-            file=uncompress_file(file,dict_class)
-            data,target=check_subfolder_data(file,dict_class)
-        data=AutoFeatureSelection.image_processing(data,target,resize,dict_class)
-            
-        modelClass = model_search(dataframe=data,target='label',DictClass=dict_class,disable_colinearity=True,model_types=model_types,accuracy_criteria=accuracy_criteria,epochs=epochs,max_neural_search=max_neural_search)
-        modelClass.yamldata=dict_class.getdict()
-        metrics=copy.deepcopy(modelClass.metrics)
-        if modelClass.yamldata['model']['type'] in ['TF','tf','Tensorflow']:metrics['Accuracy']=dict_class.accuracy
-        else:metrics['CVSCORE']=dict_class.accuracy
-        send_yaml_to_cloud({'autoAIID':exp_id,'yaml':modelClass.yamldata,'metrics':metrics})
-        dict_class.resetVar()
-        return modelClass
-    else:
+    if file is None:
         raise ValueError("{file} can't be null or empty")
+    dict_class.addKeyValue('problem',{'type':'Image Classification'})
+    root, ext = os.path.splitext(file)
+    compress_list=[".zip",".tar",".gz",'.tar.gz','.bz2']
+    dict_class.addKeyValue('data_read',{'file':file})
+    if not ext and ext not in compress_list and target is None:
+        if validate_url(file): 
+            file=file_from_url(file,dict_class) 
+        else:
+            dict_class.UpdateNestedKeyValue('data_read','from','Local')
+        data,target=check_subfolder_data(file,dict_class)
+    elif ext in compress_list:
+        if validate_url(file): 
+            file=file_from_url(file,dict_class) 
+        else:
+            dict_class.UpdateNestedKeyValue('data_read','from','Local')
+        file=uncompress_file(file,dict_class)
+        data,target=check_subfolder_data(file,dict_class)
+    data=AutoFeatureSelection.image_processing(data,target,resize,dict_class)
+
+    modelClass = model_search(dataframe=data,target='label',DictClass=dict_class,disable_colinearity=True,model_types=model_types,accuracy_criteria=accuracy_criteria,epochs=epochs,max_neural_search=max_neural_search)
+    modelClass.yamldata=dict_class.getdict()
+    metrics=copy.deepcopy(modelClass.metrics)
+    if modelClass.yamldata['model']['type'] in ['TF','tf','Tensorflow']:metrics['Accuracy']=dict_class.accuracy
+    else:metrics['CVSCORE']=dict_class.accuracy
+    send_yaml_to_cloud({'autoAIID':exp_id,'yaml':modelClass.yamldata,'metrics':metrics})
+    dict_class.resetVar()
+    return modelClass
 
 def load(model_path=None):
     """
@@ -84,8 +82,7 @@ def load(model_path=None):
 
     Function returns a de-serialized model file.
     """
-    model=model_loader(model_path)
-    return model
+    return model_loader(model_path)
 
 def spill(filepath=None,yaml_data=None,doc=None):
     """

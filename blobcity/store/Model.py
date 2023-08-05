@@ -47,13 +47,14 @@ class Model:
         """
         cols=test_dataframe.columns.to_list()
         for i in cols:
-            if(isinstance(test_dataframe[i], pd.Series) and (test_dataframe[i].dtype in ["float64","int64","float","int"])):
-                if(len(np.unique(test_dataframe[i]))<=3):
-                    test_dataframe[i].fillna(test_dataframe[i].mode()[0],inplace=True)
+            if isinstance(test_dataframe[i], pd.Series):
+                if test_dataframe[i].dtype in ["float64", "int64", "float", "int"]:
+                    if(len(np.unique(test_dataframe[i]))<=3):
+                        test_dataframe[i].fillna(test_dataframe[i].mode()[0],inplace=True)
+                    else:
+                        test_dataframe[i].fillna(test_dataframe[i].mean(),inplace=True)
                 else:
-                    test_dataframe[i].fillna(test_dataframe[i].mean(),inplace=True)
-            elif(isinstance(test_dataframe[i], pd.Series)):
-                test_dataframe[i].fillna(test_dataframe[i].mode()[0],inplace=True)
+                    test_dataframe[i].fillna(test_dataframe[i].mode()[0],inplace=True)
         if "object" in test_dataframe.dtypes.to_list():
             test_dataframe=pd.get_dummies(test_dataframe)
         return test_dataframe
@@ -79,20 +80,20 @@ class Model:
         Function adds missing columns into the dataframe at the appropriate index.
         """
         if isinstance(test,pd.DataFrame):
-            n_cols=0 
-            for i in cols:
+            for n_cols, i in enumerate(cols):
                 if i not in test.columns.to_list():
                     test.insert(n_cols, i, [0]*test.shape[0])
-                n_cols+=1
         return test
 
     def __encode_result(self,result,target_encode):
         if isinstance(result,np.ndarray):
             main_result=[]
             for i in range(len(result)):
-                for k in target_encode.keys():
-                    if k == result[i]:
-                        main_result.append(target_encode[k])
+                main_result.extend(
+                    target_encode[k]
+                    for k in target_encode.keys()
+                    if k == result[i]
+                )
             return main_result
         elif isinstance(result,dict):
             main_result={}
@@ -135,26 +136,27 @@ class Model:
             test=Model().__check_columns(test,self.featureList)
             if "cleaning" in self.yamldata.keys() and "rescale" in self.yamldata['cleaning'].keys():
                 test=pd.DataFrame(self.scaler.transform(test),columns=test.columns)
-            if self.model.__class__.__name__ not in ['XGBClassifier','XGBRegressor']:result=self.model.predict(test)
-            else:
-                if type(test)=="list":
+            if type(test)=="list":
+                if self.model.__class__.__name__ in [
+                    'XGBClassifier',
+                    'XGBRegressor',
+                ]:
                     test=pd.DataFrame(test, columns=self.featureList)
-                    result=self.model.predict(test)  
-                else:
-                    result=self.model.predict(test) 
+            if self.model.__class__.__name__ not in ['XGBClassifier','XGBRegressor']:result=self.model.predict(test)
             if self.yamldata['problem']["type"]=='Classification':
                 if self.yamldata['model']['type']=='TF':
-                    if self.yamldata['model']['classification_type']=='binary': result=np.round(result).flatten().astype(np.int)
-                    else: result=np.argmax(result,axis=1).flatten().astype(np.int)
-                
-                if self.target_encode!={}: result= Model().__encode_result(result,self.target_encode) 
-            else:
-                if self.yamldata['model']['type']=='TF': result=result.flatten().astype(np.float)
-            
+                    result = (
+                        np.round(result).flatten().astype(np.int)
+                        if self.yamldata['model']['classification_type']
+                        == 'binary'
+                        else np.argmax(result, axis=1).flatten().astype(np.int)
+                    )
+                if self.target_encode!={}: result= Model().__encode_result(result,self.target_encode)
+            elif self.yamldata['model']['type']=='TF': result=result.flatten().astype(np.float)
             result_dataframe=test.copy(deep=True)
             result_dataframe['prediction']=result
 
-        elif self.yamldata['problem']["type"]=='Image Classification' :
+        else:
             extension = os.path.splitext(test)[1]
             if extension in ['.png',".PNG",".jpg",".jpeg",'.JPEG']:
                 data=quick_image_processing(test,self.yamldata['cleaning']["resize"])
@@ -195,32 +197,31 @@ class Model:
         Function saves the model and its weights serially and returns the filepath where it is saved.
         if the model is of type Tensorflow/Neural Network the function will save addition Tensorflow files or .h5 file with same path and name for the file.
         """
-        if model_path not in [None,""]:
-            path_components = model_path.split('.')
-            extension = path_components[1] if len(path_components)<=2 else path_components[-1]
-            if extension == 'pkl' and self.yamldata['model']['type'] not in ['TF','tf','Tensorflow']:
-                final_path = model_path
-                dill.dump(self, open(final_path, 'wb'))
-                print("The model class is stored at {}".format(final_path))
-            elif extension=='pkl' and self.yamldata['model']['type'] in ['TF','tf','Tensorflow']:
-                base_path=os.path.splitext(model_path)[0]
-                tmp=self.model
-                try:
-                    tmp.export_model().save(base_path+".h5")
-                    print(f"Stored Tensorflow model at: {base_path}.h5")
-                except:
-                    if os.path.exists(base_path+".h5"):
-                        os.remove(base_path+".h5")
-                    tmp.export_model().save(base_path, save_format="tf")
-                    print(f"Stored Custom Tensorflow files at : {base_path}")
-                self.model=None
-                dill.dump(self, open(model_path, 'wb'))
-                print(f"Stored Model Class at : {base_path}.pkl")
-                self.model=tmp
-            else:
-                raise TypeError(f"{extension} file type must be .pkl")
-        else:
+        if model_path in [None, ""]:
             raise ValueError("model_path cant be None or empty string")
+        path_components = model_path.split('.')
+        extension = path_components[1] if len(path_components)<=2 else path_components[-1]
+        if extension == 'pkl' and self.yamldata['model']['type'] not in ['TF','tf','Tensorflow']:
+            final_path = model_path
+            dill.dump(self, open(final_path, 'wb'))
+            print(f"The model class is stored at {final_path}")
+        elif extension == 'pkl':
+            base_path=os.path.splitext(model_path)[0]
+            tmp=self.model
+            try:
+                tmp.export_model().save(base_path+".h5")
+                print(f"Stored Tensorflow model at: {base_path}.h5")
+            except:
+                if os.path.exists(base_path+".h5"):
+                    os.remove(base_path+".h5")
+                tmp.export_model().save(base_path, save_format="tf")
+                print(f"Stored Custom Tensorflow files at : {base_path}")
+            self.model=None
+            dill.dump(self, open(model_path, 'wb'))
+            print(f"Stored Model Class at : {base_path}.pkl")
+            self.model=tmp
+        else:
+            raise TypeError(f"{extension} file type must be .pkl")
 
     def summary(self):
         """
@@ -237,7 +238,9 @@ class Model:
             try: self.model.summary()
             except: self.model.export_model().summary()
         else:
-            print("Selected Model Type: Classic\nSelected Model Name: {}\nModel Tuning Parameter".format(self.model.__class__.__name__))
+            print(
+                f"Selected Model Type: Classic\nSelected Model Name: {self.model.__class__.__name__}\nModel Tuning Parameter"
+            )
             for key, value in self.params.items():
                 print ("{:<10} {:<10}".format(key, value))
 
@@ -264,21 +267,20 @@ class Model:
         
         Function generated and create YAML configuration file for the complete AutoAI procedures.
         """
-        if path!=None:
-            extension = os.path.splitext(path)[1]
-            filepath=path
-        else:
+        if path is None:
             filepath = './Process.yaml'
             extension=".yaml"
-        if extension in [".yaml",".yml"]:
-            try:
-                with open(filepath, 'w') as file:
-                    yaml.dump(self.yamldata, file,sort_keys=False)
-                print(f"YAML configuration saved at : {filepath}")
-            except Exception as e:
-                print("Error in saving YAML configuration")
         else:
+            extension = os.path.splitext(path)[1]
+            filepath=path
+        if extension not in [".yaml", ".yml"]:
             raise TypeError(f"{extension} file type must be .yml or .yaml")
+        try:
+            with open(filepath, 'w') as file:
+                yaml.dump(self.yamldata, file,sort_keys=False)
+            print(f"YAML configuration saved at : {filepath}")
+        except Exception as e:
+            print("Error in saving YAML configuration")
 
     def plot_feature_importance(self):
         """
@@ -330,20 +332,22 @@ class Model:
                 sns.heatmap(cf_matrix, annot=labels, fmt='',cmap='Blues')
             plt.show()
         elif problem=="Regression":
-            #plot for regression problem
-            if  abs(n_rows)!=0:
-                if abs(n_rows)<=len(self.plot_data[0]) or abs(n_rows)==1000:
-                    n=len(self.plot_data[0]) if len(self.plot_data[0])<abs(n_rows) else n_rows
-                    if n < 0: true,predict=self.plot_data[0][n:],self.plot_data[1][n:]
-                    else:true,predict=self.plot_data[0][0:n],self.plot_data[1][0:n]
-                    plt.figure(figsize=(14,10))
-                    plt.plot(range(abs(n)),true, color = "green")
-                    plt.plot(range(abs(n)),predict,linestyle='--',color = "red")
-                    plt.legend(["Actual","prediction"]) 
-                    plt.xlabel("Record number")
-                    plt.ylabel(self.yamldata['features']['Y_values'])
-                    plt.show()
-                elif abs(n_rows)>len(self.plot_data[0]):
-                    raise ValueError("entered row counts {} more than actual row counts {}".format(abs(len(self.plot_data[0])-abs(n_rows)),len(self.plot_data[0])))
-            else:
+            if abs(n_rows) == 0:
                 raise ValueError("Number of rows can't be Zero")
+            if abs(n_rows) > len(self.plot_data[0]) and abs(n_rows) != 1000:
+                raise ValueError(
+                    f"entered row counts {abs(len(self.plot_data[0]) - abs(n_rows))} more than actual row counts {len(self.plot_data[0])}"
+                )
+            n=len(self.plot_data[0]) if len(self.plot_data[0])<abs(n_rows) else n_rows
+            true, predict = (
+                (self.plot_data[0][n:], self.plot_data[1][n:])
+                if n < 0
+                else (self.plot_data[0][:n], self.plot_data[1][:n])
+            )
+            plt.figure(figsize=(14,10))
+            plt.plot(range(abs(n)),true, color = "green")
+            plt.plot(range(abs(n)),predict,linestyle='--',color = "red")
+            plt.legend(["Actual","prediction"])
+            plt.xlabel("Record number")
+            plt.ylabel(self.yamldata['features']['Y_values'])
+            plt.show()

@@ -57,7 +57,7 @@ def dataCleaner(df,features,target,DictionaryClass=None):
     for each columns with missing data call Cleaner function to Handle missing value with appropriate missing value handling strategy.
     Once Missing values are handled perform categorical value handling operation by calling Encoder() function with appropriate arguments
     """
-    missingdict=dict()
+    missingdict = {}
     if DictionaryClass!=None:DictionaryClass.addKeyValue('problem',ProType.checkType(df[target]))
     updateddf=df[features].copy(deep=True)
     if target in df.columns.to_list(): updateddf[target]=df[target].copy(deep=True)
@@ -144,27 +144,27 @@ def Encoder(DictionaryClass,X,Y=None,target=""):
 
         finally return both the feature and target .
     """
-    encode=dict()
-    if("object" in X.dtypes.to_list() or Y.dtype=="object"):
+    if ("object" in X.dtypes.to_list() or Y.dtype=="object"):
+        encode = {}
         if("object" in X.dtypes.to_list()):
             objectTypes(X,DictionaryClass)
             X=pd.get_dummies(X)
-            encode['X']='OneHotEncode' 
+            encode['X']='OneHotEncode'
         dataframe=X.copy(deep=True)
-        if(Y.dtype=="object"):
-            encode['Y']='LabelEncoder' 
+        if (Y.dtype=="object"):
+            encode['Y']='LabelEncoder'
             original_labels=np.sort(pd.unique(Y), axis=-1, kind='mergesort')
             Y=LabelEncoder().fit_transform(Y)
-            encoded_label=[xi for xi in range(len(original_labels))]
+            encoded_label = list(range(len(original_labels)))
             encodes={encoded_label[i]:original_labels[i] for i in range(len(original_labels))}
             if DictionaryClass!=None:DictionaryClass.original_label=encodes
         dataframe[target]=Y
         if DictionaryClass!=None:DictionaryClass.UpdateNestedKeyValue('cleaning','encode',encode)
-        return dataframe
     else:
         dataframe=X.copy(deep=True)
         dataframe[target]=Y
-        return dataframe
+
+    return dataframe
 
 def objectTypes(X,DictionaryClass):
     """
@@ -178,12 +178,12 @@ def objectTypes(X,DictionaryClass):
 
     g = X.columns.to_series().groupby(X.dtypes).groups
     gd={k.name: v for k, v in g.items()}
-    if 'object' in gd.keys():
-        if DictionaryClass!=None:
+    if DictionaryClass!=None:
+        if 'object' in gd:
             DictionaryClass.ObjectExist=True
-            DictionaryClass.ObjectList= gd['object'].to_list()  
-    else:
-        if DictionaryClass!=None:DictionaryClass.ObjectExist= False
+            DictionaryClass.ObjectList= gd['object'].to_list()
+        else:
+            DictionaryClass.ObjectExist= False
 
 def RemoveRowsWithHighNans(dataframe):
     """
@@ -404,10 +404,8 @@ class StationarityTest:
         StationarityTest.ADF_Stationarity_Test(self, timeseries)
         StationarityTest.kpss_test(self,timeseries)
         StationarityTest.seasonality_test(self,timeseries)
-        
-        result=max(self.test, key=self.test.count)
-       
-        return result
+
+        return max(self.test, key=self.test.count)
 
 def frequencysampling(df,date,dictclass,samplingtype):
     downsample=""

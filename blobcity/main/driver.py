@@ -67,17 +67,23 @@ def train(file=None, df=None, target=None,features=None,model_types='all',accura
     else: 
         dataframe = df
         dict_class.addKeyValue('data_read',{"type":"df","class":"df"})
-                
-    if(features==None):
+
+    if features is None:
         featureList=AutoFeatureSelection.FeatureSelection(dataframe,target,dict_class,disable_colinearity)
         CleanedDF=dataCleaner(dataframe,featureList,target,dict_class)
     else:
         CleanedDF=dataCleaner(dataframe,features,target,dict_class)   
-  
+
     accuracy_criteria= accuracy_criteria if accuracy_criteria<=1.0 else (accuracy_criteria/100)
     modelClass = model_search(dataframe=CleanedDF,target=target,DictClass=dict_class,disable_colinearity=disable_colinearity,model_types=model_types,accuracy_criteria=accuracy_criteria,epochs=epochs,max_neural_search=max_neural_search)
     modelClass.yamldata=dict_class.getdict()
-    modelClass.feature_importance_=dict_class.feature_importance if(features==None) else calculate_feature_importance(CleanedDF.drop(target,axis=1),CleanedDF[target],dict_class)
+    modelClass.feature_importance_ = (
+        dict_class.feature_importance
+        if features is None
+        else calculate_feature_importance(
+            CleanedDF.drop(target, axis=1), CleanedDF[target], dict_class
+        )
+    )
     metrics=copy.deepcopy(modelClass.metrics)
     if modelClass.yamldata['model']['type'] in ['TF','tf','Tensorflow']:metrics['Accuracy']=dict_class.accuracy
     else:metrics['CVSCORE']=dict_class.accuracy
@@ -87,32 +93,29 @@ def train(file=None, df=None, target=None,features=None,model_types='all',accura
     return modelClass
 
 def load(model_path=None):
-        """
+    """
         param1: string: (required) the filepath to the stored model. Supports .pkl models.
 
         returns: Model file
 
         function loads the serialized model from .pkl format to usable format.
         """
-        if model_path not in [None,""]:
-            path_components = model_path.split('.')
-            extension = path_components[1] if len(path_components)<=2 else path_components[-1]
-            base_path=os.path.splitext(model_path)[0]
-            if extension == 'pkl':
-                model = dill.load(open(model_path, 'rb'))  
-                if model.yamldata['model']['type'] in ['TF','tf','Tensorflow']:
-                    if model.yamldata['model']['save_type'] in ['h5','pb']:
-                        h5_path=base_path+".h5"
-                        if os.path.isfile(h5_path):model.model=tf.keras.models.load_model(h5_path)
-                        elif os.path.isdir(base_path):model.model=tf.keras.models.load_model(base_path, custom_objects=ak.CUSTOM_OBJECTS)
-                        else: raise FileNotFoundError(f"{h5_path} or {base_path} file doest exists in the directory")
-                    else:
-                        raise TypeError(f"{model.yamldata['model']['save_type']}, not supported save format")
-                return model
-            else:
-                raise TypeError(f"{extension}, file type must be .pkl")
-        else:
-            raise TypeError(f"{model_path}, path can't be None or Null")
+    if model_path in [None, ""]:
+        raise TypeError(f"{model_path}, path can't be None or Null")
+    path_components = model_path.split('.')
+    extension = path_components[1] if len(path_components)<=2 else path_components[-1]
+    base_path=os.path.splitext(model_path)[0]
+    if extension != 'pkl':
+        raise TypeError(f"{extension}, file type must be .pkl")
+    model = dill.load(open(model_path, 'rb'))
+    if model.yamldata['model']['type'] in ['TF','tf','Tensorflow']:
+        if model.yamldata['model']['save_type'] not in ['h5', 'pb']:
+            raise TypeError(f"{model.yamldata['model']['save_type']}, not supported save format")
+        h5_path=base_path+".h5"
+        if os.path.isfile(h5_path):model.model=tf.keras.models.load_model(h5_path)
+        elif os.path.isdir(base_path):model.model=tf.keras.models.load_model(base_path, custom_objects=ak.CUSTOM_OBJECTS)
+        else: raise FileNotFoundError(f"{h5_path} or {base_path} file doest exists in the directory")
+    return model
         
 
 def spill(filepath=None,yaml_data=None,doc=None):
@@ -146,8 +149,9 @@ def calculate_feature_importance(X,Y,dict_class):
         df = pd.concat([dfcolumns,dfscores],axis=1)
         df.columns = ['features','Score']
         df['Score']=MinMaxScaler().fit_transform(np.array(df['Score']).reshape(-1,1))
-        imp=AutoFeatureSelection.MainScore(dict(df.values),dict_class)
-        return imp
+        return AutoFeatureSelection.MainScore(dict(df.values),dict_class)
     else:
-        print('Dataset has only {} features, required atleast 2 for feature importances'.format(X.shape[1]))
+        print(
+            f'Dataset has only {X.shape[1]} features, required atleast 2 for feature importances'
+        )
         return None

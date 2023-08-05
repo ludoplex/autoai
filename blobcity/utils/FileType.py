@@ -89,13 +89,18 @@ def write_dataframe(dataframe=None,path=""):
     try:
         path_components = path.split('.')
         extension = path_components[1] if len(path_components)<=2 else path_components[-1]
-        if path!="":
-            if isinstance(dataframe,pd.DataFrame):
-                if extension in ['csv','xlsx','json']:
-                    save_dataframe(dataframe,path,extension)
-                else:raise TypeError("File type should be in following format [csv,xlsx,json],provided type {}".format(extension))
-            else: raise TypeError("Dataframe argument must be pd.DataFrame type, provided {}".format(type(dataframe)))
-        else: raise ValueError("Argument dataframe or type can't be None or empty") 
+        if path == "":
+            raise ValueError("Argument dataframe or type can't be None or empty")
+        if not isinstance(dataframe, pd.DataFrame):
+            raise TypeError(
+                f"Dataframe argument must be pd.DataFrame type, provided {type(dataframe)}"
+            )
+        if extension in ['csv','xlsx','json']:
+            save_dataframe(dataframe,path,extension)
+        else:        else
+            raise TypeError(
+                f"File type should be in following format [csv,xlsx,json],provided type {extension}"
+            )
     except Exception as e:
         print(e)
 
@@ -114,7 +119,7 @@ def save_dataframe(dataframe,path,ftype):
             dataframe.to_excel(path)
         elif ftype=='json':
             dataframe.to_json(path,orient="index")
-        print("saved at path {}".format(path))
+        print(f"saved at path {path}")
     except Exception as e:
         print(e)
 
@@ -146,9 +151,13 @@ def validate_url(url: str):
         scheme = result.scheme
         domain = result.netloc
         if not scheme:raise Exception("No URL scheme specified")
-        if not re.fullmatch(SCHEME_FORMAT, scheme):raise Exception("URL scheme must either be http(s) or ftp(s) (given scheme={})".format(scheme))
+        if not re.fullmatch(SCHEME_FORMAT, scheme):
+            raise Exception(
+                f"URL scheme must either be http(s) or ftp(s) (given scheme={scheme})"
+            )
         if not domain:raise Exception("No URL domain specified")
-        if not re.fullmatch(DOMAIN_FORMAT, domain):raise Exception("URL domain malformed (domain={})".format(domain))
+        if not re.fullmatch(DOMAIN_FORMAT, domain):
+            raise Exception(f"URL domain malformed (domain={domain})")
         return check_url_existence(url)
     except Exception:return False
 

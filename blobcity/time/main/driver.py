@@ -65,17 +65,17 @@ def train(file=None, df=None, target=None,features=None,date=None,frequency_samp
     exp_id=ProType.generate_uuid()
     if file!=None:
         dataframe= get_dataframe_type(file, dict_class)
-        
+
     else: 
         dataframe = df
         dict_class.addKeyValue('data_read',{"type":"df","class":"df"})
-        
-    if(features==None):
+
+    if features is None:
         CleanedDF=timeseries_cleaner(dataframe,date,target,frequency_sampling_type,dict_class)
         train_model=time_model(CleanedDF,DictClass,accuracy_criteria=None) #modelClass
-       
-   
-    print(dict_class.getdict()) 
+
+
+    print(dict_class.getdict())
     print(train_model)
     dict_class.resetVar()
     return None
